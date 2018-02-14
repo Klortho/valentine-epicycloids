@@ -149,13 +149,18 @@ const step = (_startTime, _lastPhase) => thisTime => {
   const lastPhase = typeof _lastPhase !== 'undefined' ? _lastPhase : 'none';
   const elapsed = thisTime - startTime;
 
+
+  console.log('startTime: ' + startTime +
+    ', thisTime: ' + thisTime +
+    ', elapsed: ' + elapsed);
+
   const phase =
     (lastPhase === 'none' || elapsed < startTime + drawDur) ? 'draw' :
     (lastPhase === 'draw' || elapsed < startTime + drawDur + spinDur) ? 'spin' :
     'done';
 
   if (phase === 'draw') {
-    const t = elapsed - startTime;
+    const t = elapsed;
     const a = 2 * Math.PI * t / drawDur;
     epiSets.forEach(s => s.update(a));
   }
@@ -167,7 +172,7 @@ const step = (_startTime, _lastPhase) => thisTime => {
         s.dot.remove();
       });
     }
-    const t = elapsed - startTime - drawDur;
+    const t = elapsed - drawDur;
     spinner(t / spinDur);
   }
 
@@ -201,4 +206,4 @@ function spinner(anim) {
   document.getElementById('header').style.opacity = anim;
 }
 
-window.requestAnimationFrame(step());
+window.setTimeout(() => window.requestAnimationFrame(step()), 5000);
