@@ -155,7 +155,7 @@ const step = (_startTime, _lastPhase) => thisTime => {
     'done';
 
   if (phase === 'draw') {
-    const t = elapsed - startTime;
+    const t = elapsed;
     const a = 2 * Math.PI * t / drawDur;
     epiSets.forEach(s => s.update(a));
   }
@@ -167,7 +167,7 @@ const step = (_startTime, _lastPhase) => thisTime => {
         s.dot.remove();
       });
     }
-    const t = elapsed - startTime - drawDur;
+    const t = elapsed - drawDur;
     spinner(t / spinDur);
   }
 
@@ -201,4 +201,4 @@ function spinner(anim) {
   document.getElementById('header').style.opacity = anim;
 }
 
-window.requestAnimationFrame(step());
+window.setTimeout(() => window.requestAnimationFrame(step()), 5000);
