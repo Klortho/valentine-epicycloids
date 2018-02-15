@@ -8,6 +8,8 @@ const drawDur = 10000;  // time to draw all the curves
 const spinDur = (Math.random() + 0.7) * drawDur;
 const rotateDur = drawDur / 4;
 
+const combinePhases = false;
+
 //---------------------------------------------------------------------
 // Utility functions
 
@@ -57,19 +59,19 @@ class EpiSet {
     this.rank = rank;
     this._t = 0;  // initial parameter value
 
-    const hue = Math.floor(rank * 360 / numSets);
-    const circleColor = `hsla(${hue}, 50%, 80%, 0.2)`;
+    this.hue = Math.floor(rank * 360 / numSets);
+
     this.circle0 = circle({
       r: rank + 1,
       cx: -rank,
       cy: 0,
-      stroke: circleColor,
+      stroke: this.circleColor(),
     });
     this.circle1 = circle({
       r: 1,
       cx: 2,
       cy: 0,
-      stroke: circleColor,
+      stroke: this.circleColor(),
     });
 
     this.dot = circle({'class': 'dot', r: 0.1});
@@ -78,7 +80,7 @@ class EpiSet {
     this.curve = path({
       d: this.curveStr,
       fill: 'none',
-      stroke: `hsl(${hue}, 100%, 50%)`,
+      stroke: this.curveColor(),
     });
 
     this.g = g(
@@ -89,6 +91,14 @@ class EpiSet {
         this.curve, ]
     );
     drawing.appendChild(this.g);
+  }
+
+  circleColor() {
+    return `hsla(${this.hue}, 50%, 80%, 1)`
+  }
+
+  curveColor() {
+    return `hsl(${this.hue}, 100%, 50%)`;
   }
 
   dotPos() {
@@ -149,23 +159,22 @@ const step = (_startTime, _lastPhase) => thisTime => {
   const lastPhase = typeof _lastPhase !== 'undefined' ? _lastPhase : 'none';
   const elapsed = thisTime - startTime;
 
-
-  console.log('startTime: ' + startTime +
-    ', thisTime: ' + thisTime +
-    ', elapsed: ' + elapsed);
-
   const phase =
     (lastPhase === 'none' || elapsed < startTime + drawDur) ? 'draw' :
-    (lastPhase === 'draw' || elapsed < startTime + drawDur + spinDur) ? 'spin' :
+    ( !combinePhases &&
+      (lastPhase === 'draw' || elapsed < startTime + drawDur + spinDur)
+    ) ? 'spin' :
     'done';
 
   if (phase === 'draw') {
     const t = elapsed;
     const a = 2 * Math.PI * t / drawDur;
-    epiSets.forEach(s => s.update(a));
+    //epiSets.forEach(s => s.update(a));
+    if (combinePhases) spinner(t / drawDur);
+    curver(t / drawDur);
   }
 
-  else if (phase === 'spin') {
+  else if (!combinePhases && phase === 'spin') {
     if (lastPhase === 'draw') {
       epiSets.forEach(s => {
         s.circle1.remove();
@@ -183,6 +192,15 @@ const step = (_startTime, _lastPhase) => thisTime => {
 
   if (phase !== 'done') window.requestAnimationFrame(step(startTime, phase));
 };
+
+// 0 <= p < 1
+function curver(p) {
+  const a = 2 * Math.PI * p;
+  epiSets.forEach(s => {
+    s.update(a);
+    s.circle0
+  });
+}
 
 function spinner(anim) {
   const animS = anim * spinDur / drawDur;
