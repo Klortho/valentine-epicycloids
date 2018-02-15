@@ -206,4 +206,4 @@ function spinner(anim) {
   document.getElementById('header').style.opacity = anim;
 }
 
-window.setTimeout(() => window.requestAnimationFrame(step()), 5000);
+window.requestAnimationFrame(step());
