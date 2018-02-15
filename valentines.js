@@ -4,10 +4,11 @@ const width = 600;
 const height = 600;
 const margin = 20;
 const numSets = 15;
+
 const curveDur = 10000;  // time it takes to draw all the curves
 const spinDur = (Math.random() + 0.7) * curveDur;
-const rotateDur = curveDur / 4;
 
+// `true` means curve and spin phases are combined.
 const combinePhases = false;
 
 //---------------------------------------------------------------------
@@ -59,17 +60,23 @@ class EpiSet {
     this.rank = rank;
     this.hue = Math.floor(rank * 360 / numSets);
 
-    this.circle0 = circle({
-      r: rank + 1,
-      cx: -rank,
-      cy: 0,
-    });
-    this.circle1 = circle({
-      r: 1,
-      cx: 2,
-      cy: 0,
-    });
-    this.setCircleColors(0);
+    const circleColor = `hsl(${this.hue}, 50%, 80%)`;
+    this.circles = [
+      // the circle about which the smaller one rolls
+      circle({
+        r: rank + 1,
+        cx: -rank,
+        cy: 0,
+        stroke: circleColor,
+      }),
+      // the rolling circle
+      circle({
+        r: 1,
+        cx: 2,
+        cy: 0,
+        stroke: circleColor,
+      }),
+    ];
 
     this.dot = circle({'class': 'dot', r: 0.1});
 
@@ -82,24 +89,12 @@ class EpiSet {
 
     this.g = g(
       { transform: `translate(${0}, ${0}) rotate(${0})` },
-      [ this.circle0,
-        this.circle1,
+      [ ...this.circles,
         this.dot,
         this.curve, ]
     );
     drawing.appendChild(this.g);
   }
-
-  circleColor(p) {
-    return `hsla(${this.hue}, 50%, 80%, ${1 - p})`
-  }
-
-  setCircleColors(p) {
-    [this.circle0, this.circle1].forEach(c => {
-      c.setAttribute('stroke', this.circleColor(p));
-    });
-  }
-
   curveColor() {
     return `hsl(${this.hue}, 100%, 50%)`;
   }
@@ -121,12 +116,13 @@ class EpiSet {
   update(p) {
     const angle = 2 * Math.PI * p;
     const r2 = this.rank + 2;
-    setAttrs(this.circle1, {
+    setAttrs(this.circles[1], {
       cx: r2 * Math.cos(angle) - this.rank,
       cy: r2 * Math.sin(angle),
     });
 
-    this.setCircleColors(p);
+    // the rolling circle fades away
+    this.circles[1].setAttribute('opacity', 1 - p);
 
     const pos = this.dotPos(angle);
     setAttrs(this.dot, {cx: pos[0], cy: pos[1]});
@@ -135,10 +131,13 @@ class EpiSet {
   }
 }
 
+EpiSet.update = p => epiSet => epiSet.update(p);
+
 //---------------------------------------------------------------------
 // Draw
 
-const effWidth = width - margin;     // effective width
+const header = document.getElementById('header');
+const effWidth = width - margin;
 const effHeight = height - margin;
 const newWidth = 2 * numSets + 4;
 const scale = effWidth / newWidth;
@@ -159,53 +158,54 @@ const epiSets = range(numSets).map(rank => new EpiSet(drawing, rank));
 
 const finalAngle = deg(-360 * spinDur / curveDur * (numSets - 1) + 180) - 180;
 
-const step = (_startTime, _lastPhase) => thisTime => {
-  const startTime = typeof _startTime !== 'undefined' ? _startTime : thisTime;
-  const lastPhase = typeof _lastPhase !== 'undefined' ? _lastPhase : 'none';
-  const elapsed = thisTime - startTime;
+const firstStep = _startTime => {
+  const step = (lastPhase, startTime) => thisTime => {
+    const elapsed = thisTime - startTime;
 
-  const phase =
-    (lastPhase === 'none' || elapsed < startTime + curveDur) ? 'curve' :
-    ( !combinePhases &&
-      (lastPhase === 'curve' || elapsed < startTime + curveDur + spinDur)
-    ) ? 'spin' :
-    'done';
+    const phase =
+      (lastPhase === 'none' || elapsed < startTime + curveDur) ? 'curve' :
+      ( !combinePhases &&
+        (lastPhase === 'curve' || elapsed < startTime + curveDur + spinDur)
+      ) ? 'spin' :
+      'done';
 
-  if (phase === 'curve') {
-    const t = elapsed;
-    const a = 2 * Math.PI * t / curveDur;
-    curver(t / curveDur);
-    if (combinePhases) spinner(t / curveDur);
-  }
-
-  else if (!combinePhases && phase === 'spin') {
-    if (lastPhase === 'curve') {
-      epiSets.forEach(s => {
-        s.circle1.remove();
-        s.dot.remove();
-      });
+    if (phase === 'curve') {
+      const p = Math.max(0, Math.min(1, elapsed/curveDur));
+      curver(p);
+      if (combinePhases) spinner(p);
     }
-    const t = elapsed - curveDur;
-    spinner(t / spinDur);
-  }
 
-  else {
-    spinner(1);
-    epiSets.forEach(s => s.circle0.remove());
-  }
+    else if (!combinePhases && phase === 'spin') {
+      if (lastPhase === 'curve') {
+        curver(1);
+        epiSets.forEach(s => {
+          s.circles[1].remove();
+          s.dot.remove();
+        });
+      }
+      const p = Math.max(0, Math.min(1, (elapsed - curveDur) / spinDur));
+      spinner(p);
+    }
 
-  if (phase !== 'done') window.requestAnimationFrame(step(startTime, phase));
+    else {
+      spinner(1);
+      epiSets.forEach(s => s.circle0.remove());
+    }
+
+    if (phase !== 'done') window.requestAnimationFrame(step(phase, startTime));
+  };
+
+  step('none', _startTime)(_startTime);
 };
+
 
 // 0 <= p < 1
 function curver(p) {
-  epiSets.forEach(s => {
-    s.update(p);
-  });
+  epiSets.forEach(EpiSet.update(p));
 }
 
-function spinner(anim) {
-  const animS = anim * spinDur / curveDur;
+function spinner(p) {
+  const animS = p * spinDur / curveDur;
   const aRad = 2 * Math.PI * animS;
   const aDeg = 360 * animS;
 
@@ -216,14 +216,13 @@ function spinner(anim) {
     s.g.setAttribute('transform',
       `translate(${C * Math.cos(aRad) - C} ${C * Math.sin(aRad)}) ` +
       `rotate(${rot} ${-rank} 0)`);
-    s.circle0.setAttribute('opacity', 1 - anim);
+    s.circles[0].setAttribute('opacity', 1 - p);
   });
 
   drawing.setAttribute('transform',
-    `rotate(${-finalAngle * anim} ${-numSets + 1} 0)`);
-  epiSets[0].curve.setAttribute('fill', `hsla(0, 100%, 50%, ${anim})`);
-
-  document.getElementById('header').style.opacity = anim;
+    `rotate(${-finalAngle * p} ${-numSets + 1} 0)`);
+  epiSets[0].curve.setAttribute('fill', `hsla(0, 100%, 50%, ${p})`);
+  header.style.opacity = p;
 }
 
-window.requestAnimationFrame(step());
+window.requestAnimationFrame(firstStep);
