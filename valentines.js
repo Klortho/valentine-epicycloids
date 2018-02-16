@@ -3,8 +3,8 @@
 const width = 600;
 const height = 600;
 const margin = 20;
-const numSets = 3;
-const duration = 10000;
+const numSets = 25;
+const duration = 20000;
 const π = Math.PI;
 const τ = 2 * π;
 const finalAngle = τ * (Math.random() + 0.7);
@@ -135,7 +135,7 @@ class EpiSet {
   update(p) {
     if (p === 0) this.initialize();
     else {
-      const {rank, circles, dot, g} = this;
+      const {rank, hue, circles, dot, curve, g} = this;
 
       const curveAngle = τ * p;
       const r2 = rank + 2;
@@ -144,23 +144,22 @@ class EpiSet {
         cy: r2 * Math.sin(curveAngle),
       });
 
-      // the rolling circle fades away
-      circles[1].setAttribute('opacity', 1 - p);
-
       const pos = this.dotPos(curveAngle);
       setAttrs(dot, {cx: pos[0], cy: pos[1]});
 
       this.addCurvePoint(curveAngle);
-
+      curve.setAttribute('fill', `hsla(${hue}, 100%, 50%, ${p * ((numSets - rank) / numSets)})`);
 
 
       const spinAngle = p * finalAngle;
       const C = numSets - rank - 1;
+      const rot = -degrees(spinAngle) * (numSets / (rank + 1) - 1);
+      if (p === 1 && rank === 0) console.log('final rot: ' + rot);
       g.setAttribute('transform',
         `translate(${C * Math.cos(spinAngle) - C} ${C * Math.sin(spinAngle)}) ` +
-        `rotate(${degrees(spinAngle * (numSets / (rank + 1) - 1))} ${-rank} 0)`);
+        `rotate(${rot} ${-rank} 0)`);
       circles[0].setAttribute('opacity', 1 - p);
-
+      circles[1].setAttribute('opacity', 1 - p);
     }
   }
 
@@ -173,18 +172,14 @@ class EpiSet {
 //---------------------------------------------------------------------
 // Draw
 
-//const finalAngle = normalDegrees(spinDur / curveDur * (numSets - 1) + 180) - 180;
-
 const header = document.getElementById('header');
-const effWidth = width - margin;
-const effHeight = height - margin;
+const effWidth = width - 2 * margin;
+const effHeight = height - 2 * margin;
 const newWidth = 2 * numSets + 4;
 const scale = effWidth / newWidth;
 const sMargin = margin / scale;
 
-// entry point
-const firstStep = startTime => {
-
+window.requestAnimationFrame(startTime => {
   const drawing = g({ transform: `rotate(0)` });
   document.body.appendChild(
     svg({width: width, height: height},
@@ -193,17 +188,18 @@ const firstStep = startTime => {
           `rotate(90 ${1 - numSets} 0)`},
         drawing)));
 
-  const epiSets = range(numSets).map(EpiSet.create(drawing));
+  const epiSets = range(numSets).reverse().map(EpiSet.create(drawing));
   epiSets.forEach(EpiSet.update(0));
+
+  const spinTarget = degrees(centeredAngle(finalAngle * (numSets - 1)));
 
   const step = () => {
     window.requestAnimationFrame(thisTime => {
       const p = Math.min(1, (thisTime - startTime) / duration);
       epiSets.forEach(EpiSet.update(p));
 
-      //drawing.setAttribute('transform',
-      //  `rotate(${degrees(-finalAngle * p)} ${-numSets + 1} 0)`);
-      epiSets[0].curve.setAttribute('fill', `hsla(0, 100%, 50%, ${p})`);
+      drawing.setAttribute('transform',
+        `rotate(${spinTarget * p} ${-numSets + 1} 0)`);
       header.style.opacity = p;
 
       if (p === 1) {
@@ -212,8 +208,5 @@ const firstStep = startTime => {
       else step();
     });
   };
-
   step();
-};
-
-window.requestAnimationFrame(firstStep);
+});
