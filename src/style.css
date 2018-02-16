@@ -18,7 +18,13 @@ h1 {
 circle {
   fill: none;
 }
-circle.dot {
+circle.pen {
   fill: black;
   stroke: none;
+}
+
+rect.border {
+  stroke: none;
+  fill: none;
+  vector-effect: non-scaling-stroke;
 }
