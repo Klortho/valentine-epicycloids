@@ -8,6 +8,11 @@ gulp.task('copy', () => {
     .pipe(gulp.dest('dist'));
 });
 
+gulp.task('favicon', () => {
+  return gulp.src(['src/favicon/favicon*'])
+    .pipe(gulp.dest('dist'));
+});
+
 gulp.task('rollup', () => {
   return rollup({
       input: 'src/main.js',
@@ -18,6 +23,6 @@ gulp.task('rollup', () => {
     .pipe(gulp.dest('./dist'));
 });
 
-gulp.task('default', ['copy', 'rollup'], done => {
+gulp.task('default', ['copy', 'favicon', 'rollup'], done => {
   done();
 });
